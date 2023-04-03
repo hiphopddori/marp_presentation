@@ -231,14 +231,6 @@ AWS CDK의 공식 문서는 아직 많이 부족한 상태
 기본 설명 위주
 필요로 하는 정보 찾기 어려움
 
----
-
-# FOODTECH CDK 목표
-
-많은 관심이 필요하며 함께 다같이 해당 프로젝트를 만들어 나갔으면 좋겠습니다.
-기능 추가 및 개선한 코드를 코드 리뷰를 거친 후 적용
-
-
-
+--- 
 - AWS 공식 Reference: [V2 Reference](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-construct-library.html)
 
