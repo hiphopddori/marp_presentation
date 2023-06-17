@@ -34,19 +34,14 @@ Reactor 프로젝트의 리액티브 스트림 구현체를 기반으로 동작�
 콜백 함수는 특정 이벤트가 발생할 때 자동으로 호출된다.
 요청처리 방식을 이벤트 루프 방식으로 사용하였고, 이벤트 루프는 단일스레드를 사용한다.
 
-스레드 갯수
-- 내부 CPU 코어 수에 의해 결정된다.
-- 이유 : 각 이벤트 루프는 독립적인 스레드에서 실행되는데 이때 너무 많은 스레드는 스레드스위칭 비용을 증가시키고 너무 적은 스레드는 CPU를 충분하게 활용할 수 없기 때문에
-내부적인 CPU 코어의 수로 결정 하도록 설정되어있다.
-
 ---
 
 # Webflux 도입 배경
 
-웹플럭스를 사용하기 좋은 환경으로 무거운 연산이 적고 I/O 위주의 로직이 존재하는 환경을 입니다.
+웹플럭스를 사용하기 좋은 환경으로 CPU 연산이 적고 I/O 위주의 로직이 존재하는 환경 입니다.
 MATE 사장님앱 공통 백앤드 서비스는 MSA로 분리 되있는 API 호출을 통한 조합 및
-DB 조회가 주 비지니스 로직 이다.
-대량의 트래픽들을 적은 스레드를 바탕으로 처리할수 있어야 한다.
+DB 조회가 주 비지니스 로직 입니다.
+대량의 트래픽들을 적은 스레드를 바탕으로 처리할수 있어야 합니다.
 
 특정 시간에 쏟아져 들어오는 요청량에도 안정적이고 적은 비용으로 서비스가 가능하여야 하며, 이를 위해서 Spring 에서의 reactive stack인 webflux를 고민하게 되었습니다.
 
@@ -77,8 +72,8 @@ Coroutine 가장큰 장점은 익숙한 동기식 코드스타일로 비동기�
 코틀린의 여러 장점들 중에 하나는 자바에는 없는 Coroutine(코루틴)이라는 개념을 제공한다는 것입니다.
 코루틴은 코드를 'Non-Blocking'하게 동작시켜주는 기술이며 Reactive Streams와 비교되는 기술입니다.
 
-코루틴은 Spring Framework 5.2, Spring Boot 2.2 버젼부터 사용이 가능
-코루틴 지원을 통해서 Mono와 Flux가 아닌 코틀린의 문법인 suspend로 스프링 어플리케이션 작성이 가능
+코루틴은 Spring Framework 5.2, Spring Boot 2.2 버젼부터 사용이 가능 합니다.
+코루틴 지원을 통해서 Mono와 Flux가 아닌 코틀린의 문법인 suspend로 스프링 어플리케이션 작성이 가능 합니다.
 
 ---
 
@@ -227,6 +222,35 @@ section {
 
 ---
 
+# 예제
+<style scoped>
+section {
+  font-size: 25px;
+}
+</style>
+
+
+``` kotlin
+suspend fun doSomethingGetDatabase(): Int {
+    delay(2000L) // DB 조회하여 대기중
+    return 13
+}
+suspend fun doSomethingGetApiCall(): Int {
+    delay(2000L) // API 호출하여 대기중
+    return 29
+}
+
+fun main() = runBlocking {
+    val time = measureTimeMillis {
+        val one = async { doSomethingUsefulOne() }
+        val two = async { doSomethingUsefulTwo() }
+        println("13 + 29 는 ${one.await() + two.await()} 입니다")
+    }
+    println("Completed in $time ms")
+}
+```
+---
+
 # Flux Mono 간단한 개념
 - Reactor 프로젝트의 리액티브 스트림 타입 이며 비동기 방식을 구현해주는 주요 객체 입니다.
 ## Mono
@@ -246,35 +270,39 @@ section {
 
 ---
 
-# 예제
-<style scoped>
-section {
-  font-size: 25px;
-}
-</style>
+# Webclient 
+스프링 웹플럭스는 리액티브, 넌블로킹 HTTP 요청을 위한 WebClient를 제공합니다.
+WebClient는 리액티브 타입을 사용하는 함수형 API기 떄문에 선언적인 프로그래밍이 가능합니다.
+기존의 동기 API를 제공할 뿐만 아니라, 논블로킹 및 비동기 접근 방식을 지원해서 효율적인 통신이 가능 합니다.
+https://godekdls.github.io/Reactive%20Spring/webclient/
 
+---
 
+# WebMVC에서의 WebClient 비동기 적용 처리
+``` java
+    public Flux<CouponCreateAndMms.Response> multiCouponIssuanceAndMms(List<CouponIssuanceDto.CreateAndNmsDto> createDtos) {
+        List<Mono<CouponCreateAndMms.Response>> monos = new ArrayList();
+        createDtos.stream().forEach(coupon -> {        
+            monos.add(couponIssuanceAndMms(coupon));        
+        });
 
-``` kotlin
-suspend fun doSomethingGetDatabase(): Int {
-    delay(1000L) // DB 조회하여 대기중
-    return 13
-}
-suspend fun doSomethingGetApiCall(): Int {
-    delay(1000L) // API 호출하여 대기중
-    return 29
-}
-
-fun main() = runBlocking {
-    val time = measureTimeMillis {
-        val one = async { doSomethingUsefulOne() }
-        val two = async { doSomethingUsefulTwo() }
-        println("13 + 29 는 ${one.await() + two.await()} 입니다")
+        Flux<CouponCreateAndMms.Response> responseFlux = Flux.merge(monos);
+        return responseFlux;
     }
-    println("Completed in $time ms")
-}
+```
+``` java
+public Mono<CouponCreateAndMms.Response> couponIssuanceAndMms(CouponIssuanceDto.CreateAndNmsDto createDto) {
+        Object body = CouponCreateAndMms.Response.class;
+        String queryString = createDto.getQueryString();
+        return send(body,"serviceapi_02.asmx","ServiceCreateSend03", queryString);
+    }
+```
+
+``` java
+List<CouponCreateAndMms.Response> responses = couponClient.multiCouponIssuanceAndMms(dtos).collectList().block(couponClient.MAX_BLOCK_TIME);
 ```
 ---
+
 # R2DBC 설명
 
 R2DBC는 Reactive Relational Database Connectivity의 약자입니다. R2DBC는 리액티브 프로그래밍 모델을 사용하여 관계형 데이터베이스와의 상호작용을 지원하는 자바 기반의 라이브러리입니다.
@@ -330,14 +358,6 @@ suspend fun findPosUserStaff(userId: String, password: String): PosLoginVo? {
     }
 ```
 ---
-# Webclient 
-스프링 웹플럭스는 리액티브, 넌블로킹 HTTP 요청을 위한 WebClient를 제공합니다.
-WebClient는 리액티브 타입을 사용하는 함수형 API기 떄문에 선언적인 프로그래밍이 가능합니다.
-기존의 동기 API를 제공할 뿐만 아니라, 논블로킹 및 비동기 접근 방식을 지원해서 효율적인 통신이 가능 합니다.
-https://godekdls.github.io/Reactive%20Spring/webclient/
-
----
-
 
 참고 자료
 
